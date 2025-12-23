@@ -1,0 +1,9 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./bin/api.exe ./cmd/api"
+entrypoint = "./bin/api.exe"
+
+include_ext = ["go"]
+exclude_dir = ["tmp", "bin", "vendor", ".git"]
