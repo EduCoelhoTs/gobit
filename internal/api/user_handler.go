@@ -14,6 +14,7 @@ func (api *Api) HandleLogin(w http.ResponseWriter, r *http.Request) {
 func (api *Api) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	if _, mappedErrs, err := jsonutils.DecodeValidJson[*user.CreateUserDTO](r); err != nil {
 		jsonutils.EncodeJson(w, r, http.StatusBadRequest, mappedErrs)
+		return
 	}
 }
 
