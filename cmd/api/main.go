@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/coelhoedudev/gobit/internal/api"
@@ -18,15 +21,37 @@ import (
 func main() {
 
 	ctx := context.Background()
-	if err := run(ctx); err != nil {
-		log.Fatalf("failed to start server: %w", err)
+	server, err := createServer(ctx)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	//implementando gracefully shutdown
+	//contexto que será cancelado ao receber sigint ou sigterm
+	stopCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go func(ctx context.Context) {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}(ctx)
+
+	<-stopCtx.Done()
+	shutdownCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Println("http shutdown error: %w", err)
+	}
+
+	log.Println("server stop gracefully")
 
 }
 
-func run(ctx context.Context) error {
+func createServer(ctx context.Context) (*http.Server, error) {
 	if err := godotenv.Load(); err != nil {
-		return fmt.Errorf("failed to load enviroments variables %s", err.Error())
+		return nil, fmt.Errorf("failed to load enviroments variables %s", err.Error())
 	}
 
 	pool, err := pgxpool.New(ctx, fmt.Sprintf(
@@ -39,13 +64,13 @@ func run(ctx context.Context) error {
 	))
 
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %s", err.Error())
+		return nil, fmt.Errorf("failed to connect to database: %s", err.Error())
 	}
 
 	defer pool.Close()
 
 	if err := pool.Ping(ctx); err != nil {
-		return fmt.Errorf("failed to comunicate with database: %s", err.Error())
+		return nil, fmt.Errorf("failed to comunicate with database: %s", err.Error())
 	}
 
 	api := api.Api{
@@ -73,6 +98,6 @@ func run(ctx context.Context) error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	return server.ListenAndServe()
+	return &server, nil
 
 }
