@@ -26,7 +26,7 @@ func NewUserService(pool *pgxpool.Pool) *UserService {
 
 var ErrDuplicatedEmailOrPassword = errors.New("username or email already exists")
 
-func (s *UserService) Create(ctx context.Context, user user.CreateUserDTO) (uuid.UUID, error) {
+func (s *UserService) Create(ctx context.Context, user *user.CreateUserDTO) (uuid.UUID, error) {
 
 	hash, err := _crypto.GenerateHashFromPassword(user.Password)
 	if err != nil {

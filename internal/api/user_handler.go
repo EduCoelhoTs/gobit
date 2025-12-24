@@ -1,9 +1,12 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
+	_error "github.com/coelhoedudev/gobit/internal/error"
 	"github.com/coelhoedudev/gobit/internal/jsonutils"
+	"github.com/coelhoedudev/gobit/internal/service"
 	"github.com/coelhoedudev/gobit/internal/usecase/user"
 )
 
@@ -12,10 +15,27 @@ func (api *Api) HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *Api) HandleSignup(w http.ResponseWriter, r *http.Request) {
-	if _, mappedErrs, err := jsonutils.DecodeValidJson[*user.CreateUserDTO](r); err != nil {
+	data, mappedErrs, err := jsonutils.DecodeValidJson[*user.CreateUserDTO](r)
+	if err != nil {
 		jsonutils.EncodeJson(w, r, http.StatusBadRequest, mappedErrs)
 		return
 	}
+
+	id, err := api.UserService.Create(r.Context(), data)
+	if err != nil {
+		if errors.Is(err, service.ErrDuplicatedEmailOrPassword) {
+			_ = jsonutils.EncodeJson(w, r, int(http.StatusBadRequest), map[string]string{
+				"error": "invalid email or password",
+			})
+			return
+		}
+		http.Error(w, _error.ServerInternalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	_ = jsonutils.EncodeJson(w, r, http.StatusCreated, map[string]string{
+		"id": id.String(),
+	})
 }
 
 func (api *Api) HandleLogout(w http.ResponseWriter, r *http.Request) {
