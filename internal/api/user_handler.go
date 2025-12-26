@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	_error "github.com/coelhoedudev/gobit/internal/error"
@@ -15,13 +16,15 @@ func (api *Api) HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *Api) HandleSignup(w http.ResponseWriter, r *http.Request) {
-	data, mappedErrs, err := jsonutils.DecodeValidJson[*user.CreateUserDTO](r)
+	fmt.Println("bateu")
+	data, mappedErrs, err := jsonutils.DecodeValidJson[user.CreateUserDTO](r)
 	if err != nil {
 		jsonutils.EncodeJson(w, r, http.StatusBadRequest, mappedErrs)
+		api.Logger.Error(err.Error())
 		return
 	}
 
-	id, err := api.UserService.Create(r.Context(), data)
+	id, err := api.UserService.Create(r.Context(), &data)
 	if err != nil {
 		if errors.Is(err, service.ErrDuplicatedEmailOrPassword) {
 			_ = jsonutils.EncodeJson(w, r, int(http.StatusBadRequest), map[string]string{
@@ -29,7 +32,9 @@ func (api *Api) HandleSignup(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+
 		http.Error(w, _error.ServerInternalErrorMsg, http.StatusInternalServerError)
+		api.Logger.Error(err.Error())
 		return
 	}
 

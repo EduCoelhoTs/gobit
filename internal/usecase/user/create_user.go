@@ -14,7 +14,7 @@ type CreateUserDTO struct {
 	Bio      string `json:"bio"`
 }
 
-func (req *CreateUserDTO) Valid(ctx context.Context) validator.Evaluator {
+func (req CreateUserDTO) Valid(ctx context.Context) validator.Evaluator {
 	var eval validator.Evaluator
 
 	eval.CheckField(validator.NotBlank(req.UserName), "user_name", _error.NotBlankMsg)

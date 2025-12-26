@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,7 +14,9 @@ import (
 
 	"github.com/coelhoedudev/gobit/internal/api"
 	"github.com/coelhoedudev/gobit/internal/service"
+	"github.com/coelhoedudev/gobit/package/logger"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
@@ -73,9 +76,21 @@ func createServer(ctx context.Context) (*http.Server, error) {
 		return nil, fmt.Errorf("failed to comunicate with database: %s", err.Error())
 	}
 
+	env := os.Getenv("ENV")
+	logger := logger.New(logger.Config{
+		Env:   env,
+		Level: slog.LevelInfo,
+	})
+
+	router := chi.NewMux()
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.RequestID)
+	router.Use(api.RequestLogger(logger))
+
 	api := api.Api{
-		Router:      chi.NewMux(),
+		Router:      router,
 		UserService: service.NewUserService(pool),
+		Logger:      logger,
 	}
 
 	api.BindRoutes()
